@@ -136,6 +136,9 @@ std::optional<EndpointHandler> HttpServer::find_handler(
     return std::nullopt;
 }
 
+/** install an endpoint handler. Note that repeated calls for the same endpoint
+ * will override the earlier registered endpoint handler.
+ */
 void HttpServer::register_endpoint_handler(
     const std::string& endpoint, HttpMethod method, const handler_func_t& func)
 {
