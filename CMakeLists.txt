@@ -4,9 +4,7 @@ project(io_uring_interface_suite CXX)
 
 include(CTest)
 
-if (NOT TARGET slogger)
-    add_subdirectory(simple-logger)
-endif()
+add_subdirectory(iuring)
 
 enable_testing()
 
@@ -18,31 +16,24 @@ set(PRIVATE_INCLUDE_DIRECTORIES src/)
 file(GLOB_RECURSE SOURCE_FILES "src/*.cpp" "src/*.hpp")
 file(GLOB_RECURSE INCLUDE_FILES "include/*.hpp")
 
-add_library(iuring)
+add_library(iuring_httpserver)
 
-target_compile_features(iuring PUBLIC cxx_std_23)
-target_link_libraries(iuring -luring slogger)
-target_include_directories(iuring PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES})
-target_include_directories(iuring PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES})
+target_compile_features(iuring_httpserver PUBLIC cxx_std_23)
+target_link_libraries(iuring_httpserver iuring slogger)
+target_include_directories(iuring_httpserver PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES})
+target_include_directories(iuring_httpserver PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES})
 
-target_sources(iuring
+target_sources(iuring_httpserver
     PUBLIC FILE_SET HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
     FILES ${INCLUDE_FILES}
     PRIVATE ${SOURCE_FILES}
 )
 
-install(TARGETS iuring FILE_SET HEADERS)
-
+install(TARGETS iuring_httpserver FILE_SET HEADERS)
 
 # Set target properties for public headers
-set_target_properties(iuring PROPERTIES PUBLIC_HEADER "${INCLUDE_FILES}")
-
-add_executable(ping tests/ping.cpp)
-target_link_libraries(ping iuring)
-
-add_executable(echo_server tests/echo_server.cpp)
-target_link_libraries(echo_server iuring)
+set_target_properties(iuring_httpserver PROPERTIES PUBLIC_HEADER "${INCLUDE_FILES}")
 
 find_package(GTest)
 

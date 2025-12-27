@@ -1,9 +1,7 @@
 #include <sstream>
 #include <utility>
 
-#include <Application.hpp>
 #include <http/HttpServer.hpp>
-#include <ptp/PtpService.hpp>
 
 namespace http
 {

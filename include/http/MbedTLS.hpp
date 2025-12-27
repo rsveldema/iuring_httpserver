@@ -60,7 +60,7 @@ class MbedTLS : public AbstractTLS
 {
 public:
     MbedTLS(const std::shared_ptr<iuring::IOUringInterface>& io,
-        logging::ILogger& logger, settings::Configuration& config)
+        logging::ILogger& logger, ServerConfig& config)
         : AbstractTLS(io, logger, config)
     {
     }

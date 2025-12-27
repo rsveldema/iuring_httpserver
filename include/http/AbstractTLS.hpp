@@ -5,7 +5,8 @@
 #include <iuring/IOUringInterface.hpp>
 #include <slogger/Error.hpp>
 
-#include <Configuration.hpp>
+#include <http/ServerConfig.hpp>
+
 
 namespace http
 {
@@ -18,14 +19,14 @@ class AbstractTLS
 {
 public:
     AbstractTLS(const std::shared_ptr<iuring::IOUringInterface>& io,
-        logging::ILogger& logger, settings::Configuration& config)
+        logging::ILogger& logger, ServerConfig& config)
         : m_logger(logger)
         , m_io(io)
         , m_config(config)
     {
     }
 
-    const settings::Configuration& get_config() const
+    const ServerConfig& get_config() const
     {
         return m_config;
     }
@@ -50,6 +51,6 @@ public:
 private:
     logging::ILogger& m_logger;
     std::shared_ptr<iuring::IOUringInterface> m_io;
-    settings::Configuration& m_config;
+    ServerConfig& m_config;
 };
 } // namespace http

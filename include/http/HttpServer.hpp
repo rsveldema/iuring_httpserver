@@ -9,33 +9,18 @@
 #include <iuring/IOUringInterface.hpp>
 #include <iuring/ISocketFactory.hpp>
 
-#include <urtsched/RealtimeKernel.hpp>
-#include <urtsched/Service.hpp>
-#include <urtsched/ServiceBus.hpp>
-
 #include <http/AbstractTLS.hpp>
 #include <http/HttpParser.hpp>
 #include <http/HttpStatusCodes.hpp>
 #include <http/ParseError.hpp>
-
-
-namespace ptp
-{
-class PtpService;
-}
-
-namespace audio
-{
-class RavennaService;
-}
 
 namespace http
 {
 enum class ReplyContentType
 {
     APPLICATION_JSON, // application/json
-    APPLICATION_SDP, //application/sdp
-    TEXT_PLAIN // text/plain
+    APPLICATION_SDP,  // application/sdp
+    TEXT_PLAIN        // text/plain
 };
 
 struct HandlerResult
@@ -79,17 +64,15 @@ struct EndpointHandler
     URLParameters params;
 };
 
-class HttpServer : public service::Service
+class HttpServer
 {
 public:
     HttpServer(const std::string& server_name,
-        const std::shared_ptr<realtime::RealtimeKernel>& rt_kernel,
         const std::shared_ptr<iuring::IOUringInterface>& network,
         logging::ILogger& logger, iuring::NetworkAdapter& adapter,
-        iuring::ISocketFactory& socket_factory,
-        iuring::SocketPortID port,
+        iuring::ISocketFactory& socket_factory, iuring::SocketPortID port,
         const std::shared_ptr<AbstractTLS>& tls)
-        : service::Service(rt_kernel, logger)
+        : m_logger(logger)
         , m_server_name(server_name)
         , m_socket_factory(socket_factory)
         , m_adapter(adapter)
@@ -99,17 +82,18 @@ public:
     {
     }
 
-    [[nodiscard]] error::Error init();
-    error::Error finish() override
+    logging::ILogger& get_logger()
     {
-        return error::Error::OK;
+        return m_logger;
     }
 
+    [[nodiscard]] error::Error init();
 
     void register_endpoint_handler(const std::string& endpoint,
         HttpMethod method, const handler_func_t& func);
 
 private:
+    logging::ILogger& m_logger;
     const std::string m_server_name;
     iuring::ISocketFactory& m_socket_factory;
     iuring::NetworkAdapter& m_adapter;
