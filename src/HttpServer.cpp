@@ -195,7 +195,8 @@ std::string status_code_to_string(StatusCode c)
 
 std::string HttpServer::create_reply_string(StatusCode status_code,
     const std::string& reply_payload,
-    const std::map<std::string, std::string>& headers,
+    const header_map_t& request_headers,
+    const header_map_t& extra_response_headers,
     ReplyContentType reply_content_type)
 {
     const auto status_msg = status_code_to_string(status_code);
@@ -236,28 +237,55 @@ std::string HttpServer::create_reply_string(StatusCode status_code,
 
     static const auto* REQUEST_HEADERS = "Access-Control-Request-Headers";
     static const auto* REQUEST_METHOD = "Access-Control-Request-Method";
+    static const auto* ALLOW_HEADERS = "Access-Control-Allow-Headers";
+    static const auto* ALLOW_METHODS = "Access-Control-Allow-Methods";
 
-    if (headers.contains(REQUEST_HEADERS))
+    bool handled_ACL_headers = false;
+    bool handled_ACL_methods = false;
+    for (const auto& it : extra_response_headers)
     {
-        if (auto it = headers.find(REQUEST_HEADERS); it != headers.end())
+        reply += it.first + ": " + it.second + "\r\n";
+
+        if (it.first == ALLOW_HEADERS)
         {
-            reply += "Access-Control-Allow-Headers: " + it->second + "\r\n";
+            handled_ACL_headers = true;
         }
-        else
+        if (it.first == ALLOW_METHODS)
         {
-            LOG_ERROR(get_logger(), "no req header data?");
+            handled_ACL_methods = true;
         }
     }
 
-    if (headers.contains(REQUEST_METHOD))
+    if (!handled_ACL_headers)
     {
-        if (auto it = headers.find(REQUEST_METHOD); it != headers.end())
+        // echo the request header back to the requestor
+        if (request_headers.contains(REQUEST_HEADERS))
         {
-            reply += "Access-Control-Allow-Methods: " + it->second + "\r\n";
+            if (auto it = request_headers.find(REQUEST_HEADERS);
+                it != request_headers.end())
+            {
+                reply += "Access-Control-Allow-Headers: " + it->second + "\r\n";
+            }
+            else
+            {
+                LOG_ERROR(get_logger(), "no req header data?");
+            }
         }
-        else
+    }
+
+    if (!handled_ACL_methods)
+    {
+        if (request_headers.contains(REQUEST_METHOD))
         {
-            LOG_ERROR(get_logger(), "no req method data?");
+            if (auto it = request_headers.find(REQUEST_METHOD);
+                it != request_headers.end())
+            {
+                reply += "Access-Control-Allow-Methods: " + it->second + "\r\n";
+            }
+            else
+            {
+                LOG_ERROR(get_logger(), "no req method data?");
+            }
         }
     }
 
@@ -273,7 +301,7 @@ std::string HttpServer::create_reply_string(StatusCode status_code,
 
 void HttpServer::handle_endpoint(const std::string& endpoint,
     const std::string& payload, HttpMethod method,
-    const std::map<std::string, std::string>& request_headers,
+    const header_map_t& request_headers,
     const std::shared_ptr<iuring::ISocket>& socket)
 {
     if (const auto handler_opt = find_handler(endpoint, method))
@@ -282,7 +310,7 @@ void HttpServer::handle_endpoint(const std::string& endpoint,
         handler_struct.handler(endpoint, payload, handler_struct.params,
             [this, socket, request_headers](const HandlerResult& ret) {
                 const auto reply_msg = create_reply_string(ret.m_status,
-                    ret.m_reply, request_headers, ret.m_content_type);
+                    ret.m_reply, request_headers, ret.m_reply_headers, ret.m_content_type);
 
                 send_reply(socket, reply_msg);
             });
@@ -296,9 +324,10 @@ void HttpServer::handle_endpoint(const std::string& endpoint,
         // lets return an empty json
         auto status_code = http::StatusCode::NOT_FOUND;
         auto reply_payload = "{}";
+        header_map_t reply_headers;
 
         auto reply_msg = create_reply_string(status_code, reply_payload,
-            request_headers, ReplyContentType::APPLICATION_JSON);
+            request_headers, reply_headers, ReplyContentType::APPLICATION_JSON);
 
         send_reply(socket, reply_msg);
     }
@@ -315,7 +344,7 @@ void HttpServer::handle_incoming_http_packet(
     parser.parse(msg);
 
     auto endpoint_opt = parser.get_endpoint();
-    if (! endpoint_opt.has_value())
+    if (!endpoint_opt.has_value())
     {
         LOG_ERROR(get_logger(), "missing endpoint in http header");
         return;
@@ -323,7 +352,7 @@ void HttpServer::handle_incoming_http_packet(
     LOG_INFO(get_logger(), "handle: {}", endpoint_opt.value());
 
     auto type_opt = parser.get_type();
-    if (! type_opt.has_value())
+    if (!type_opt.has_value())
     {
         LOG_ERROR(get_logger(), "missing type in http header");
         return;

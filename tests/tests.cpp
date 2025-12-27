@@ -49,6 +49,8 @@ TEST_F(TestFixture, get)
                         ASSERT_GT(split.size(), 7);
                         ASSERT_EQ(split[0], "HTTP/1.1 200 OK\r");
                         ASSERT_EQ(split[2], "Server: testserver\r");
+
+                        ASSERT_EQ(split[split.size() - 4], "extra-header: cheerio\r");
                         ASSERT_EQ(split[split.size() - 1], "reply from world");
 
                         iuring::SendResult res{1};
@@ -56,6 +58,7 @@ TEST_F(TestFixture, get)
                     });
 
             http::HandlerResult reply("reply from world", http::StatusCode::OK);
+            reply.m_reply_headers["extra-header"] = "cheerio";
 
             // calling the reply handler will cause the http-response to be sent
             // invoking the IScoket::send() call to be issued (tested with the above EXPECT_CALL(.., send(..))

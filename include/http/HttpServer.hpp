@@ -1,7 +1,7 @@
 #pragma once
 
-
 #include <functional>
+#include <map>
 #include <utility>
 
 #include <slogger/ILogger.hpp>
@@ -23,11 +23,14 @@ enum class ReplyContentType
     TEXT_PLAIN        // text/plain
 };
 
+using header_map_t = std::map<std::string, std::string>;
+
 struct HandlerResult
 {
     std::string m_reply;
     StatusCode m_status;
     ReplyContentType m_content_type;
+    header_map_t m_reply_headers;
 
     HandlerResult()
         : m_reply("")
@@ -67,6 +70,8 @@ struct EndpointHandler
 class HttpServer
 {
 public:
+    /** @param tls Pass in an MbedTLS instance to switch to https.
+     */
     HttpServer(const std::string& server_name,
         const std::shared_ptr<iuring::IOUringInterface>& network,
         logging::ILogger& logger, iuring::NetworkAdapter& adapter,
@@ -123,7 +128,7 @@ private:
 
     void handle_endpoint(const std::string& endpoint,
         const std::string& payload, HttpMethod method,
-        const std::map<std::string, std::string>& headers,
+        const header_map_t& headers,
         const std::shared_ptr<iuring::ISocket>& socket);
 
     void handle_incoming_http_packet(const iuring::ReceivedMessage& data,
@@ -133,8 +138,8 @@ private:
         const std::string& reply_msg);
 
     std::string create_reply_string(StatusCode status_code,
-        const std::string& reply_payload,
-        const std::map<std::string, std::string>& headers,
+        const std::string& reply_payload, const header_map_t& request_headers,
+        const header_map_t& response_headers,
         ReplyContentType reply_content_type);
 };
 
