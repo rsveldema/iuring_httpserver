@@ -32,7 +32,7 @@ namespace http
         assert(m_valid == VALID_MASK); // lightweight check that we've got no memory corruption...
 
         std::string data;
-        data += method_to_string(method);
+        data += StringUtils::to_upper( method_to_string(method) );
         data += " ";
         data += endpoint;
         data += " HTTP/1.1\r\n";
