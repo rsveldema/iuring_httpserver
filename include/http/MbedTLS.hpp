@@ -40,7 +40,8 @@ public:
     }
 
     void join_multicast_group(
-        const std::string& ip_address, const std::string& source_iface) override
+        const iuring::IPAddress& ip_address,
+        const iuring::IPAddress& source_iface) override
     {
         m_client_socket->join_multicast_group(ip_address, source_iface);
     }

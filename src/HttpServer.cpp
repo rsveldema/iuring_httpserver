@@ -233,7 +233,8 @@ std::string HttpServer::create_reply_string(StatusCode status_code,
     auto ip4 = get_adapter().get_interface_ip4();
     assert(ip4.has_value());
     // nmos tool really wants this reply header:
-    reply += "Access-Control-Allow-Origin: http://" + ip4.value() + "\r\n";
+    reply += std::format("Access-Control-Allow-Origin: http://{}\r\n",
+        ip4.value());
 
     static const auto* REQUEST_HEADERS = "Access-Control-Request-Headers";
     static const auto* REQUEST_METHOD = "Access-Control-Request-Method";
