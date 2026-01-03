@@ -339,7 +339,7 @@ void HttpServer::handle_incoming_http_packet(
     const std::shared_ptr<iuring::ISocket>& socket)
 {
     const auto msg = data.to_string();
-    LOG_DEBUG(get_logger(), "http ---> received: {} bytes -> {}",
+    LOG_INFO(get_logger(), "http ---> received: {} bytes -> {}",
         data.get_size(), msg);
     HttpParser parser(get_logger());
     parser.parse(msg);
