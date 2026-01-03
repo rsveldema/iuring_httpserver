@@ -130,7 +130,7 @@ public:
         return static_cast<StatusCode>(code);
     }
 
-    std::int64_t get_header_size() const
+    std::size_t get_header_size() const
     {
         return m_header_size;
     }

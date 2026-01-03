@@ -369,7 +369,7 @@ HttpSessionState HttpSession::handle_incoming_http_packet(
         return HttpSessionState::INCOMPLETE;
     }
 
-    if (parser.get_content_size().value() >  (m_partial_data.size() - parser.get_header_size()))
+    if (parser.get_content_size().value() > (m_partial_data.size() - parser.get_header_size()))
     {
         LOG_DEBUG(socket->get_logger(),
             "http-session ---> waiting for more data: have {} need {}",
