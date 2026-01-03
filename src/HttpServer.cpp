@@ -194,8 +194,7 @@ std::string status_code_to_string(StatusCode c)
 }
 
 std::string HttpServer::create_reply_string(StatusCode status_code,
-    const std::string& reply_payload,
-    const header_map_t& request_headers,
+    const std::string& reply_payload, const header_map_t& request_headers,
     const header_map_t& extra_response_headers,
     ReplyContentType reply_content_type)
 {
@@ -233,8 +232,8 @@ std::string HttpServer::create_reply_string(StatusCode status_code,
     auto ip4 = get_adapter().get_interface_ip4();
     assert(ip4.has_value());
     // nmos tool really wants this reply header:
-    reply += std::format("Access-Control-Allow-Origin: http://{}\r\n",
-        ip4.value());
+    reply +=
+        std::format("Access-Control-Allow-Origin: http://{}\r\n", ip4.value());
 
     static const auto* REQUEST_HEADERS = "Access-Control-Request-Headers";
     static const auto* REQUEST_METHOD = "Access-Control-Request-Method";
@@ -311,7 +310,8 @@ void HttpServer::handle_endpoint(const std::string& endpoint,
         handler_struct.handler(endpoint, payload, handler_struct.params,
             [this, socket, request_headers](const HandlerResult& ret) {
                 const auto reply_msg = create_reply_string(ret.m_status,
-                    ret.m_reply, request_headers, ret.m_reply_headers, ret.m_content_type);
+                    ret.m_reply, request_headers, ret.m_reply_headers,
+                    ret.m_content_type);
 
                 send_reply(socket, reply_msg);
             });
@@ -334,33 +334,97 @@ void HttpServer::handle_endpoint(const std::string& endpoint,
     }
 }
 
-void HttpServer::handle_incoming_http_packet(
+HttpSessionState HttpSession::handle_incoming_http_packet(
     const iuring::ReceivedMessage& data,
     const std::shared_ptr<iuring::ISocket>& socket)
 {
-    const auto msg = data.to_string();
-    LOG_INFO(get_logger(), "http ---> received: {} bytes -> {}",
-        data.get_size(), msg);
-    HttpParser parser(get_logger());
-    parser.parse(msg);
+    if (data.get_size() == 0)
+    {
+        LOG_DEBUG(socket->get_logger(),
+            "http-session ---> received: 0 bytes -> connection closed");
+        return HttpSessionState::COMPLETE;
+    }
 
-    auto endpoint_opt = parser.get_endpoint();
+    const auto new_msg = data.to_string();
+    m_partial_data += new_msg;
+    LOG_DEBUG(socket->get_logger(), "http-session ---> received: {} bytes -> {}",
+        data.get_size(), new_msg);
+
+    parser.parse(m_partial_data);
+
+    if (parser.get_content_size().has_value() == false)
+    {
+        LOG_DEBUG(socket->get_logger(),
+            "http-session ---> no content-size header, assuming complete (and "
+            "not handling chunked at the moment)");
+        return HttpSessionState::COMPLETE;
+    }
+
+    if (parser.get_header_size() > m_partial_data.size())
+    {
+        LOG_INFO(socket->get_logger(),
+            "http-session ---> waiting for more data: have {} need header size "
+            "{}",
+            m_partial_data.size(), parser.get_header_size());
+        return HttpSessionState::INCOMPLETE;
+    }
+
+    if (parser.get_content_size().value() >  (m_partial_data.size() - parser.get_header_size()))
+    {
+        LOG_DEBUG(socket->get_logger(),
+            "http-session ---> waiting for more data: have {} need {}",
+            m_partial_data.size(), parser.get_content_size().value());
+        return HttpSessionState::INCOMPLETE;
+    }
+    return HttpSessionState::COMPLETE;
+}
+
+
+void HttpServer::handle_incoming_http_packet(
+    const iuring::ReceivedMessage& pkt_data,
+    const std::shared_ptr<iuring::ISocket>& socket)
+{
+    if (!m_active_sessions.contains(socket->get_port()))
+    {
+        m_active_sessions[socket->get_port()] =
+            std::make_unique<HttpSession>(get_logger());
+    }
+
+    const auto state =
+        m_active_sessions[socket->get_port()]->handle_incoming_http_packet(
+            pkt_data, socket);
+
+    if (state == HttpSessionState::INCOMPLETE)
+    {
+        LOG_INFO(get_logger(),
+            "http ---> session incomplete, waiting for more data");
+        return;
+    }
+
+    const auto endpoint_opt = m_active_sessions[socket->get_port()]->get_endpoint();
     if (!endpoint_opt.has_value())
     {
         LOG_ERROR(get_logger(), "missing endpoint in http header");
         return;
     }
-    LOG_INFO(get_logger(), "handle: {}", endpoint_opt.value());
 
-    auto type_opt = parser.get_type();
+    const auto type_opt = m_active_sessions[socket->get_port()]->get_type();
     if (!type_opt.has_value())
     {
         LOG_ERROR(get_logger(), "missing type in http header");
         return;
     }
 
-    handle_endpoint(endpoint_opt.value(), parser.get_payload(),
-        type_opt.value(), parser.get_headers(), socket);
+    LOG_INFO(get_logger(), "handle: {}", endpoint_opt.value());
+    const auto& payload = m_active_sessions[socket->get_port()]->get_payload();
+    const auto& headers = m_active_sessions[socket->get_port()]->get_headers();
+
+    handle_endpoint(
+        endpoint_opt.value(), payload, type_opt.value(), headers, socket);
+
+    // reset so that the next request can be handled
+    m_active_sessions[socket->get_port()] = nullptr;
+    m_active_sessions.erase(socket->get_port());
 }
 
 
@@ -377,12 +441,12 @@ void HttpServer::handle_incoming_http_packet(
     m_listen_socket = m_socket_factory.create_impl(iuring::SocketType::IPV4_TCP,
         m_port, get_logger(), iuring::SocketKind::SERVER_STREAM_SOCKET);
 
-    LOG_INFO(get_logger(), "WEB: listening on port {}", m_port);
+    LOG_INFO(get_logger(), "HttpServer: listening on port {}", m_port);
 
 
     get_io()->submit_accept(
         m_listen_socket, [this](const iuring::AcceptResult& new_conn) {
-            LOG_INFO(get_logger(), "accept-new-connection callback called");
+            LOG_DEBUG(get_logger(), "accept-new-connection callback called");
 
             auto client_socket =
                 m_socket_factory.create_impl(get_logger(), new_conn);

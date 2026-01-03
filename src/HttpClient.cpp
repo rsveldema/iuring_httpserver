@@ -67,7 +67,7 @@ namespace http
                 }
 
                 m_io->submit_recv(m_socket, [this, result=result](const iuring::ReceivedMessage& msg) {
-                    LOG_DEBUG(get_logger(), "received: {}", msg.to_string());
+                    LOG_INFO(get_logger(), "received: {}", msg.to_string());
 
                     HttpParser parser(get_logger());
                     parser.parse(msg.to_string());

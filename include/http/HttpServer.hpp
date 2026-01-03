@@ -14,60 +14,17 @@
 #include <http/HttpStatusCodes.hpp>
 #include <http/ParseError.hpp>
 
+#include <http/IHttpServer.hpp>
+
 namespace http
 {
-enum class ReplyContentType
-{
-    APPLICATION_JSON, // application/json
-    APPLICATION_SDP,  // application/sdp
-    TEXT_PLAIN        // text/plain
-};
-
-using header_map_t = std::map<std::string, std::string>;
-
-struct HandlerResult
-{
-    std::string m_reply;
-    StatusCode m_status;
-    ReplyContentType m_content_type;
-    header_map_t m_reply_headers;
-
-    HandlerResult()
-        : m_reply("")
-        , m_status(StatusCode::OK)
-        , m_content_type(ReplyContentType::APPLICATION_JSON)
-    {
-    }
-
-    HandlerResult(std::string reply, StatusCode status,
-        ReplyContentType content_type = ReplyContentType::APPLICATION_JSON)
-        : m_reply(std::move(reply))
-        , m_status(status)
-        , m_content_type(content_type)
-    {
-    }
-};
-
-using reply_handler_t = std::function<void(const HandlerResult&)>;
-
-std::string create_json_error_msg(const std::string& msg);
-
-
-using URLParameters = std::vector<std::pair<std::string, std::string>>;
-
-std::string to_string(http::URLParameters params);
-
-using handler_func_t =
-    std::function<void(const std::string& endpoint, const std::string& payload,
-        const URLParameters& params, reply_handler_t reply_handler)>;
-
 struct EndpointHandler
 {
     handler_func_t handler;
     URLParameters params;
 };
 
-class HttpServer
+class HttpServer : public IHttpServer
 {
 public:
     /** @param tls Pass in an MbedTLS instance to switch to https.
@@ -92,10 +49,10 @@ public:
         return m_logger;
     }
 
-    [[nodiscard]] error::Error init();
+    [[nodiscard]] error::Error init() override;
 
     void register_endpoint_handler(const std::string& endpoint,
-        HttpMethod method, const handler_func_t& func);
+        HttpMethod method, const handler_func_t& func) override;
 
 private:
     logging::ILogger& m_logger;
@@ -109,6 +66,8 @@ private:
     std::shared_ptr<iuring::IOUringInterface> m_network;
     const iuring::SocketPortID m_port;
     std::shared_ptr<AbstractTLS> m_tls;
+
+    std::map<iuring::SocketPortID, std::unique_ptr<HttpSession>> m_active_sessions;
 
 private:
     std::shared_ptr<iuring::IOUringInterface>& get_io()

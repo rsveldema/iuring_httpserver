@@ -29,7 +29,9 @@ public:
         std::istringstream stream(input);
         parse_headers(stream);
 
-        const auto pos = stream.tellg();
+        m_header_size = stream.tellg();
+
+        const auto pos = m_header_size;
         if (pos == -1)
         {
             LOG_ERROR(get_logger(), "http parser: no payload found: {}",
@@ -61,6 +63,18 @@ public:
             return std::nullopt;
         }
         return split[2];
+    }
+
+    
+    std::optional<std::size_t> get_content_size()
+    {
+        const auto content_length_it = m_headers.find("Content-Length");
+        if (content_length_it == m_headers.end())
+        {
+            return std::nullopt;
+        }
+        return static_cast<std::size_t>(
+            std::stoul(content_length_it->second));
     }
 
     std::optional<HttpMethod> get_type()
@@ -116,11 +130,17 @@ public:
         return static_cast<StatusCode>(code);
     }
 
+    std::int64_t get_header_size() const
+    {
+        return m_header_size;
+    }
+
 private:
     static constexpr const char* METHOD = "method";
     logging::ILogger& m_logger;
     std::map<std::string, std::string> m_headers;
     std::string m_payload;
+    std::int64_t m_header_size = 0;
 
     void parse_headers(std::istringstream& stream)
     {
