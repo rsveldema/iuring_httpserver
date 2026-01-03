@@ -396,7 +396,7 @@ void HttpServer::handle_incoming_http_packet(
 
     if (state == HttpSessionState::INCOMPLETE)
     {
-        LOG_INFO(get_logger(),
+        LOG_DEBUG(get_logger(),
             "http ---> session incomplete, waiting for more data");
         return;
     }

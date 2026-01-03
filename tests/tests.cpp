@@ -107,3 +107,118 @@ TEST_F(TestFixture, get)
     ASSERT_EQ(server.init(), error::Error::OK);
     ASSERT_TRUE(endpoint_called);
 }
+
+TEST_F(TestFixture, HttpParser_ContentLength_Present)
+{
+    logging::DirectConsoleLogger logger(
+        false, true, logging::LogOutput::CONSOLE);
+
+    http::HttpParser parser(logger);
+
+    // HTTP request with Content-Length header
+    std::string request_with_content_length;
+    request_with_content_length += "POST /api/data HTTP/1.1\r\n";
+    request_with_content_length += "Host: www.example.com\r\n";
+    request_with_content_length += "Content-Type: application/json\r\n";
+    request_with_content_length += "Content-Length: 27\r\n";
+    request_with_content_length += "\r\n";
+    request_with_content_length += "{\"key\":\"value\",\"id\":123}";
+
+    ASSERT_EQ(parser.parse(request_with_content_length), error::Error::OK);
+
+    // Verify Content-Length is parsed correctly
+    auto content_size = parser.get_content_size();
+    ASSERT_TRUE(content_size.has_value());
+    ASSERT_EQ(content_size.value(), 27);
+
+    // Verify payload is correct
+    ASSERT_EQ(parser.get_payload(), "{\"key\":\"value\",\"id\":123}");
+
+    // Verify other headers are parsed correctly
+    ASSERT_EQ(parser.get_type(), http::HttpMethod::POST);
+    auto endpoint = parser.get_endpoint();
+    ASSERT_TRUE(endpoint.has_value());
+    ASSERT_EQ(endpoint.value(), "/api/data");
+}
+
+TEST_F(TestFixture, HttpParser_ContentLength_Absent)
+{
+    logging::DirectConsoleLogger logger(
+        false, true, logging::LogOutput::CONSOLE);
+
+    http::HttpParser parser(logger);
+
+    // HTTP GET request without Content-Length header (typical for GET)
+    std::string request_without_content_length;
+    request_without_content_length += "GET /api/resource HTTP/1.1\r\n";
+    request_without_content_length += "Host: www.example.com\r\n";
+    request_without_content_length += "User-Agent: TestClient/1.0\r\n";
+    request_without_content_length += "Accept: */*\r\n";
+    request_without_content_length += "\r\n";
+
+    ASSERT_EQ(parser.parse(request_without_content_length), error::Error::OK);
+
+    // Verify Content-Length is not present
+    auto content_size = parser.get_content_size();
+    ASSERT_FALSE(content_size.has_value());
+
+    // Verify other parsing is correct
+    ASSERT_EQ(parser.get_type(), http::HttpMethod::GET);
+    auto endpoint = parser.get_endpoint();
+    ASSERT_TRUE(endpoint.has_value());
+    ASSERT_EQ(endpoint.value(), "/api/resource");
+}
+
+TEST_F(TestFixture, HttpParser_ContentLength_Zero)
+{
+    logging::DirectConsoleLogger logger(
+        false, true, logging::LogOutput::CONSOLE);
+
+    http::HttpParser parser(logger);
+
+    // HTTP request with Content-Length: 0
+    std::string request_zero_content_length;
+    request_zero_content_length += "POST /api/empty HTTP/1.1\r\n";
+    request_zero_content_length += "Host: www.example.com\r\n";
+    request_zero_content_length += "Content-Length: 0\r\n";
+    request_zero_content_length += "\r\n";
+
+    ASSERT_EQ(parser.parse(request_zero_content_length), error::Error::OK);
+
+    // Verify Content-Length is present and is 0
+    auto content_size = parser.get_content_size();
+    ASSERT_TRUE(content_size.has_value());
+    ASSERT_EQ(content_size.value(), 0);
+
+    // Verify payload is empty
+    ASSERT_EQ(parser.get_payload(), "");
+}
+
+TEST_F(TestFixture, HttpParser_ContentLength_LargeValue)
+{
+    logging::DirectConsoleLogger logger(
+        false, true, logging::LogOutput::CONSOLE);
+
+    http::HttpParser parser(logger);
+
+    // Create a large payload
+    std::string large_payload(1024, 'X');
+    
+    std::string request_large_content;
+    request_large_content += "PUT /api/upload HTTP/1.1\r\n";
+    request_large_content += "Host: www.example.com\r\n";
+    request_large_content += "Content-Length: 1024\r\n";
+    request_large_content += "\r\n";
+    request_large_content += large_payload;
+
+    ASSERT_EQ(parser.parse(request_large_content), error::Error::OK);
+
+    // Verify Content-Length is parsed correctly
+    auto content_size = parser.get_content_size();
+    ASSERT_TRUE(content_size.has_value());
+    ASSERT_EQ(content_size.value(), 1024);
+
+    // Verify payload size matches
+    ASSERT_EQ(parser.get_payload().size(), 1024);
+    ASSERT_EQ(parser.get_payload(), large_payload);
+}
