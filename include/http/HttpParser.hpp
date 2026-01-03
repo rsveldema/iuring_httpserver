@@ -32,7 +32,8 @@ public:
         const auto pos = stream.tellg();
         if (pos == -1)
         {
-            LOG_ERROR(get_logger(), "http parser: no payload found");
+            LOG_ERROR(get_logger(), "http parser: no payload found: {}",
+                input);
             return error::Error::UNKNOWN;
         }
         m_payload = input.substr(stream.tellg());
