@@ -2,6 +2,7 @@
 
 #include <map>
 #include <string>
+#include <regex>
 
 #include <http/HttpServer.hpp>
 #include <domainmodel/Node.hpp>

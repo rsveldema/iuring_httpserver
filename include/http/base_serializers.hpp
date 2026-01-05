@@ -4,6 +4,42 @@
 // different class-impls
 //
 
+static bool is_positive_integer_as_string(const std::string& s)
+{
+    if (s.empty())
+    {
+        return false;
+    }
+
+    for (const auto& c : s)
+    {
+        if (c == '"')
+        {
+            // we'll accept '"123"'
+            continue;
+        }
+        if (!std::isdigit(c))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool matches_regex(const std::string& pattern, const std::string& value)
+{
+    try
+    {
+        std::regex re(pattern);
+        return std::regex_match(value, re);
+    }
+    catch (const std::regex_error& e)
+    {
+        THROW_ERROR("invalid regex pattern: " + pattern);
+    }
+}
+
 [[maybe_unused]] static std::string serialize(const http::EmptyObject&)
 {
     return "";
