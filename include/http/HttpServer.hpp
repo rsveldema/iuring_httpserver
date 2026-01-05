@@ -28,12 +28,14 @@ class HttpServer : public IHttpServer
 {
 public:
     /** @param tls Pass in an MbedTLS instance to switch to https.
+     * @param show_http_packets If true, show incoming and outgoing http packets in info log
      */
     HttpServer(const std::string& server_name,
         const std::shared_ptr<iuring::IOUringInterface>& network,
         logging::ILogger& logger, iuring::NetworkAdapter& adapter,
         iuring::ISocketFactory& socket_factory, iuring::SocketPortID port,
-        const std::shared_ptr<AbstractTLS>& tls)
+        const std::shared_ptr<AbstractTLS>& tls,
+        bool show_http_packets)
         : m_logger(logger)
         , m_server_name(server_name)
         , m_socket_factory(socket_factory)
@@ -41,6 +43,7 @@ public:
         , m_network(network)
         , m_port(port)
         , m_tls(tls)
+        , m_show_http_packets(show_http_packets)
     {
     }
 
@@ -66,6 +69,7 @@ private:
     std::shared_ptr<iuring::IOUringInterface> m_network;
     const iuring::SocketPortID m_port;
     std::shared_ptr<AbstractTLS> m_tls;
+    bool m_show_http_packets = false;
 
     std::map<iuring::SocketPortID, std::unique_ptr<HttpSession>> m_active_sessions;
 

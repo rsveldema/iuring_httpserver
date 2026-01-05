@@ -33,7 +33,8 @@ public:
     }
 
     [[nodiscard]] HttpSessionState handle_incoming_http_packet(const iuring::ReceivedMessage& data,
-        const std::shared_ptr<iuring::ISocket>& socket);
+        const std::shared_ptr<iuring::ISocket>& socket,
+        bool show_http_packets);
 
 
     const std::map<std::string, std::string>& get_headers() const

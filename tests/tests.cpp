@@ -24,7 +24,7 @@ TEST_F(TestFixture, get)
     iuring::mocks::SocketFactory socket_factory;
 
     http::HttpServer server("testserver", network, logger, adapter,
-        socket_factory, iuring::SocketPortID::LOCAL_WEB_PORT, nullptr);
+        socket_factory, iuring::SocketPortID::LOCAL_WEB_PORT, nullptr, false);
 
     bool endpoint_called = false;
     server.register_endpoint_handler("/hello/{foo}/bar", http::HttpMethod::GET,

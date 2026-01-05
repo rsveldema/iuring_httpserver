@@ -293,8 +293,10 @@ std::string HttpServer::create_reply_string(StatusCode status_code,
     reply += "\r\n";
     reply += reply_payload;
 
-    // LOG_INFO(get_logger(), "SERVER REPLY: {}", reply_payload.c_str());
-
+    if (m_show_http_packets)
+    {
+        LOG_INFO(get_logger(), "http-session ---> sending: {}", reply);
+    }
     return reply;
 }
 
@@ -336,7 +338,8 @@ void HttpServer::handle_endpoint(const std::string& endpoint,
 
 HttpSessionState HttpSession::handle_incoming_http_packet(
     const iuring::ReceivedMessage& data,
-    const std::shared_ptr<iuring::ISocket>& socket)
+    const std::shared_ptr<iuring::ISocket>& socket,
+    bool show_http_packets)
 {
     if (data.get_size() == 0)
     {
@@ -347,8 +350,12 @@ HttpSessionState HttpSession::handle_incoming_http_packet(
 
     const auto new_msg = data.to_string();
     m_partial_data += new_msg;
-    LOG_DEBUG(socket->get_logger(), "http-session ---> received: {} bytes -> {}",
-        data.get_size(), new_msg);
+
+    if (show_http_packets)
+    {
+        LOG_INFO(socket->get_logger(), "http-session ---> received: {} bytes -> {}",
+            data.get_size(), new_msg);
+    }
 
     parser.parse(m_partial_data);
 
@@ -392,7 +399,7 @@ void HttpServer::handle_incoming_http_packet(
 
     const auto state =
         m_active_sessions[socket->get_port()]->handle_incoming_http_packet(
-            pkt_data, socket);
+            pkt_data, socket, m_show_http_packets);
 
     if (state == HttpSessionState::INCOMPLETE)
     {
