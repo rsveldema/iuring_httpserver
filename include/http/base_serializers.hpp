@@ -136,7 +136,11 @@ static bool matches_regex(const std::string& pattern, const std::string& value)
 
 [[maybe_unused]] static void deserialize(int64_t& v, const json& payload)
 {
-    v = payload.get<int>();
+    if (payload.is_number_integer() == false)
+    {
+        THROW_ERROR("not a json integer");
+    }
+    v = payload.get<int64_t>();
 }
 
 [[maybe_unused]] static std::string serialize(const http::null_t&)
