@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstring>
+#include <queue>
 
 #include <http/MbedTLS.hpp>
 
@@ -86,8 +87,17 @@ public:
         {
             return;
         }
+#if __cpp_lib_containers_ranges
         m_encrypted_data.push_range(data);
+#else
+        for (size_t i = 0; i < data.get_size(); i++)
+        {
+            uint8_t byte = *(data.begin() + i);        
+            m_encrypted_data.push(byte);
+        }
+#endif
         assert(!m_encrypted_data.empty());
+
     }
 
     size_t copy_out_encrypted_data(uint8_t* buf, size_t len)
