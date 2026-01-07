@@ -29,6 +29,11 @@ static bool is_positive_integer_as_string(const std::string& s)
 
 static bool matches_regex(const std::string& pattern, const std::string& value)
 {
+    if (pattern.empty())
+    {
+        // empty string always matches
+        return true;
+    }
     try
     {
         std::regex re(pattern);
