@@ -13,10 +13,26 @@ namespace http
 
         m_io->submit_connect(
             m_socket, m_ip,
-            [this, method, payload, result, endpoint](const iuring::ConnectResult& addr) {
+            [this, method, payload, result, endpoint](const iuring::ConnectResult& connect_result) {
+                const auto status = connect_result.to_expected();
+                if (status.has_value() == false)
+                {
+                    HttpResult res;
+                    res.status_code = StatusCode::NOT_REACHABLE;
+                    LOG_ERROR(get_logger(),
+                        "failed to connect to HTTP CLIENT at {}, error: {}",
+                        m_ip.to_human_readable_string(),
+                        static_cast<int>(status.error()));
+                    res.payload = "";
+                    result(res);
+                    return;
+                }
+            
+                const auto addr = status.value();
+
                 LOG_INFO(get_logger(),
                     "connected to HTTP CLIENT at {}",
-                    addr.m_address.to_human_readable_string());
+                    addr.to_human_readable_string());
 
                 send_request_connected(endpoint, method, payload, result);
             });
@@ -54,13 +70,14 @@ namespace http
 
         wi->submit_stream_data(
             [this, result=result](const iuring::SendResult& send_result) {
-                if (send_result.status <= 0)
+                auto status = send_result.to_expected();
+                if (status.has_value() == false)
                 {
                     HttpResult res;
                     res.status_code = StatusCode::NOT_REACHABLE;
                     LOG_ERROR(get_logger(),
                         "failed to send HTTP request, status: {}",
-                        send_result.status);
+                        static_cast<int>(status.error()));
                     res.payload = "";
                     result(res);
                     return;

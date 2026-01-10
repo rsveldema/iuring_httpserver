@@ -137,9 +137,17 @@ int MbedTLS::send_cb(const unsigned char* buf, size_t len)
     pkt.append(buf, len);
 
     wi->submit_stream_data([this](const iuring::SendResult& result) {
+        auto status = result.to_expected();
+        if (!status.has_value())
+        {
+            LOG_ERROR(get_logger(),
+                "|||||||||||| encrypted packet send failed: {}",
+                static_cast<int>(status.error()));
+            return;
+        }
         LOG_DEBUG(get_logger(),
             "|||||||||||| encrypted packet sent successfully: {}",
-            result.status);
+            status.value());
     });
     return len;
 }
