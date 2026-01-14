@@ -126,8 +126,17 @@ public:
                 "bad http response status line: {}", header_line);
             return StatusCode::BAD_REQUEST;
         }
-        const int code = std::stoi(split[1]);
-        return static_cast<StatusCode>(code);
+        try
+        {
+            const int code = std::stoi(split[1]);
+            return static_cast<StatusCode>(code);
+        }
+        catch (const std::exception&)
+        {
+            LOG_ERROR(get_logger(),
+                "failed to parse status code: {}", split[1]);
+            return StatusCode::BAD_REQUEST;
+        }
     }
 
     std::size_t get_header_size() const
