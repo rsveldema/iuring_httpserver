@@ -4,7 +4,9 @@ project(io_uring_interface_suite CXX)
 
 include(CTest)
 
-add_subdirectory(iuring)
+if (NOT TARGET iuring)
+    add_subdirectory(iuring)
+endif()
 
 enable_testing()
 
