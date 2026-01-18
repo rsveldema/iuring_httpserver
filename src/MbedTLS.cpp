@@ -92,7 +92,7 @@ public:
 #else
         for (size_t i = 0; i < data.get_size(); i++)
         {
-            uint8_t byte = *(data.begin() + i);        
+            uint8_t byte = *(data.begin() + i);
             m_encrypted_data.push(byte);
         }
 #endif
@@ -263,8 +263,8 @@ error::Error MbedTLS::add_encrypted_data(const iuring::ReceivedMessage& data,
     }
 
 
-    std::array<uint8_t, 1024 * 32> buf;
-    const auto ret = mbedtls_ssl_read(&ssl, buf.data(), buf.size());
+    auto buf = std::make_unique<std::array<uint8_t, 1024 * 32>>();
+    const auto ret = mbedtls_ssl_read(&ssl, buf->data(), buf->size());
 
     if (ret < 0)
     {
@@ -287,10 +287,10 @@ error::Error MbedTLS::add_encrypted_data(const iuring::ReceivedMessage& data,
             return error::Error::OK;
 
         default:
-            mbedtls_strerror(ret, (char*) buf.data(), buf.size());
+            mbedtls_strerror(ret, (char*) buf->data(), buf->size());
             LOG_ERROR(get_logger(),
                 "|||||||||||| failed to read from tls socket: {}",
-                (const char*) buf.data());
+                (const char*) buf->data());
             conn->set_state(SocketState::CLOSED);
             return error::Error::BAD_PPROTOCOL;
         }
@@ -298,7 +298,7 @@ error::Error MbedTLS::add_encrypted_data(const iuring::ReceivedMessage& data,
     else
     {
         iuring::ReceivedMessage unencrypted_msg(
-            buf.data(), ret, data.get_source_address());
+            buf->data(), ret, data.get_source_address());
         auto post_action = handler(unencrypted_msg, m_socket);
         LOG_DEBUG(get_logger(),
             "|||||||||||| client tls wanted post action: {}",
