@@ -3,6 +3,8 @@
 // NOTE: no pragma-once here as its specifically included multiple times but in
 // different class-impls
 //
+// NOTE: do not add include statements here, add them in main.py
+//
 
 static bool is_positive_integer_as_string(const std::string& s)
 {
@@ -252,13 +254,14 @@ static void deserialize_recurs_variant(std::variant<Types...>& obj, const json& 
         }
         catch (const ParseError& e)
         {
-            fprintf(stderr, "was not variant alternative %ld\n", I);
+            std::println(std::cerr, "was not variant alternative {}", I);
         }
 
         return deserialize_recurs_variant<I + 1, Types...>(obj, payload);
     }
     THROW_ERROR("failed to parse tuple variant");
 }
+
 template <typename... Types>
 static void deserialize(std::variant<Types...>& obj, const json& payload)
 {
